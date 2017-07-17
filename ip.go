@@ -147,24 +147,23 @@ func (p IPPacket) Length() (int, error) {
 
 // ReadIPPacket read a IPPacket from a io.Reader
 func ReadIPPacket(r io.Reader) (IPPacket, error) {
+	const HLEN = 6
 	// create a minimum header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
-	const hlen = 6
-	p := make(IPPacket, hlen)
+	var err error
+	p := make(IPPacket, HLEN)
 	// read the minimum header
-	_, err := io.ReadFull(r, p)
-	if err != nil {
+	if 	_, err := io.ReadFull(r, p); err != nil {
 		return nil, err
 	}
 	// retrieve packet length
-	len, err := p.Length()
-	if err != nil {
+	len := 0
+	if len, err = p.Length(); err != nil {
 		return nil, err
 	}
 	// append size
-	p = append(p, make(IPPacket, len-hlen)...)
+	p = append(p, make(IPPacket, len-HLEN)...)
 	// read remaining
-	_, err = io.ReadFull(r, p[hlen:])
-	if err != nil {
+	if _, err = io.ReadFull(r, p[HLEN:]); err != nil {
 		return nil, err
 	}
 	return p, nil
