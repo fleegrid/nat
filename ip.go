@@ -2,6 +2,7 @@ package nat
 
 import (
 	"errors"
+	"io"
 	"net"
 )
 
@@ -19,11 +20,11 @@ const (
 // IPPacket represents a single IP packet
 type IPPacket []byte
 
-// IPv4PacketMinLen IPv4 Packet minimum length
-const IPv4PacketMinLen = 20
+// IPv4PacketHeadLen IPv4 Packet minimum length
+const IPv4PacketHeadLen = 20
 
-// IPv6PacketMinLen IPv6 Packet minimum length
-const IPv6PacketMinLen = 40
+// IPv6PacketHeadLen IPv6 Packet minimum length
+const IPv6PacketHeadLen = 40
 
 var (
 	// ErrIPPacketTooShort IPPacket is too short for IPv4 or IPv6
@@ -47,7 +48,7 @@ func (p IPPacket) GetIP(t IPType) (net.IP, error) {
 	switch p.Version() {
 	case 4:
 		{
-			if len(p) < IPv4PacketMinLen {
+			if len(p) < IPv4PacketHeadLen {
 				return nil, ErrIPPacketTooShort
 			}
 			ip := make(net.IP, 4)
@@ -60,7 +61,7 @@ func (p IPPacket) GetIP(t IPType) (net.IP, error) {
 		}
 	case 6:
 		{
-			if len(p) < IPv6PacketMinLen {
+			if len(p) < IPv6PacketHeadLen {
 				return nil, ErrIPPacketTooShort
 			}
 			ip := make(net.IP, 16)
@@ -83,7 +84,7 @@ func (p IPPacket) SetIP(t IPType, ip net.IP) error {
 	switch p.Version() {
 	case 4:
 		{
-			if len(p) < IPv4PacketMinLen {
+			if len(p) < IPv4PacketHeadLen {
 				return ErrIPPacketTooShort
 			}
 			if len(ip) < net.IPv4len {
@@ -98,7 +99,7 @@ func (p IPPacket) SetIP(t IPType, ip net.IP) error {
 		}
 	case 6:
 		{
-			if len(p) < IPv6PacketMinLen {
+			if len(p) < IPv6PacketHeadLen {
 				return ErrIPPacketTooShort
 			}
 			if len(ip) < net.IPv6len {
@@ -117,4 +118,55 @@ func (p IPPacket) SetIP(t IPType, ip net.IP) error {
 			return ErrIPPacketBadVersion
 		}
 	}
+}
+
+// ReadIPPacket read a IPPacket from a io.Reader
+func ReadIPPacket(r io.Reader) (IPPacket, error) {
+	// create a header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
+	const hlen = 6
+	h := make(IPPacket, hlen, hlen)
+	// read 20
+	_, err := r.Read(h)
+	if err != nil {
+		return nil, err
+	}
+	// check version
+	switch h.Version() {
+	case 4:
+		{
+			// calculate the packet length
+			l := int(h[2])<<4 + int(h[3])
+			if l < IPv4PacketHeadLen {
+				return nil, ErrIPPacketTooShort
+			}
+			// create the real packet
+			p := make(IPPacket, l, l)
+			copy(p, h)
+			// read the remaining
+			_, err := r.Read(p[hlen:])
+			if err != nil {
+				return nil, err
+			}
+			return p, nil
+		}
+	case 6:
+		{
+			// calculate the packet length
+			l := int(h[4])<<4 + int(h[5]) + IPv6PacketHeadLen
+			// create the real packet
+			p := make(IPPacket, l, l)
+			copy(p, h)
+			// read the remaining
+			_, err := r.Read(p[hlen:])
+			if err != nil {
+				return nil, err
+			}
+			return p, nil
+		}
+	default:
+		{
+			return nil, ErrIPPacketBadVersion
+		}
+	}
+	return nil, nil
 }

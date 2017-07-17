@@ -1,6 +1,7 @@
 package nat
 
 import (
+	"bytes"
 	"net"
 	"testing"
 )
@@ -94,4 +95,50 @@ func TestIPPacket6(t *testing.T) {
 		t.Errorf("Failed to set destination ip: %v", p[39])
 	}
 
+}
+
+func TestReadIPPacket(t *testing.T) {
+	b := make([]byte, 30)
+	b[0] = 0x45
+	b[2] = 0x00
+	b[3] = 0x19
+
+	r := bytes.NewReader(b)
+
+	p, err := ReadIPPacket(r)
+
+	if err != nil {
+		t.Errorf("failed to read: %v", err)
+	}
+
+	if p.Version() != 4 {
+		t.Errorf("failed to determine packet version: 4 == %v", p.Version())
+	}
+
+	if len(p) != 25 {
+		t.Errorf("failed to determine packet start: len(p) = %v", len(p))
+	}
+}
+
+func TestReadIPPacket6(t *testing.T) {
+	b := make([]byte, 50)
+	b[0] = 0x60
+	b[4] = 0x00
+	b[5] = 0x05
+
+	r := bytes.NewReader(b)
+
+	p, err := ReadIPPacket(r)
+
+	if err != nil {
+		t.Errorf("failed to read: %v", err)
+	}
+
+	if p.Version() != 6 {
+		t.Errorf("failed to determine packet version: 6 == %v", p.Version())
+	}
+
+	if len(p) != 45 {
+		t.Errorf("failed to determine packet start: len(p) = %v", len(p))
+	}
 }
