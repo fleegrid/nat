@@ -118,6 +118,12 @@ func TestReadIPPacket(t *testing.T) {
 	if len(p) != 25 {
 		t.Errorf("failed to determine packet start: len(p) = %v", len(p))
 	}
+
+	l, _ := p.Length()
+
+	if l != 25 {
+		t.Errorf("failed to determine packet start: len(p) = %v", l)
+	}
 }
 
 func TestReadIPPacket6(t *testing.T) {
@@ -140,5 +146,11 @@ func TestReadIPPacket6(t *testing.T) {
 
 	if len(p) != 45 {
 		t.Errorf("failed to determine packet start: len(p) = %v", len(p))
+	}
+
+	l, _ := p.Length()
+
+	if l != 45 {
+		t.Errorf("failed to determine packet start: len(p) = %v", l)
 	}
 }

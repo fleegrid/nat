@@ -120,6 +120,31 @@ func (p IPPacket) SetIP(t IPType, ip net.IP) error {
 	}
 }
 
+// Length get the length of IPPacket
+func (p IPPacket) Length() (int, error) {
+	switch p.Version() {
+	case 4:
+		{
+			if len(p) < 4 {
+				return -1, ErrIPPacketTooShort
+			}
+			return int(p[2])<<4 + int(p[3]), nil
+		}
+	case 6:
+		{
+			if len(p) < 6 {
+				return -1, ErrIPPacketTooShort
+			}
+			return int(p[4])<<4 + int(p[5]) + IPv6PacketHeadLen, nil
+		}
+	default:
+		{
+			return -1, ErrIPPacketBadVersion
+		}
+	}
+	return -1, nil
+}
+
 // ReadIPPacket read a IPPacket from a io.Reader
 func ReadIPPacket(r io.Reader) (IPPacket, error) {
 	// create a header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
