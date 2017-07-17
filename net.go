@@ -3,6 +3,7 @@ package nat
 import (
 	"errors"
 	"net"
+	"sync"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 // Net a simple Net that manages a subnet and automatically maps IPs
 type Net struct {
 	*net.IPNet
+	*sync.Mutex
 	GatewayIP net.IP
 	usedIPs   map[string]bool
 }
@@ -26,6 +28,7 @@ func NewNet(gip net.IP, ipnet *net.IPNet) (*Net, error) {
 	}
 	return &Net{
 		IPNet:     ipnet,
+		Mutex:     &sync.Mutex{},
 		GatewayIP: gip,
 		usedIPs: map[string]bool{
 			gip.String(): true,
@@ -44,6 +47,8 @@ func NewNetFromCIDR(cidr string) (*Net, error) {
 
 // Mark make a ip as already taken
 func (n *Net) Mark(ip net.IP) {
+	n.Lock()
+	defer n.Unlock()
 	if n.Contains(ip) {
 		n.usedIPs[ip.String()] = true
 	}
@@ -51,6 +56,8 @@ func (n *Net) Mark(ip net.IP) {
 
 // Take take a virtual IP from Net's subnet
 func (n *Net) Take() (net.IP, error) {
+	n.Lock()
+	defer n.Unlock()
 	ip := make(net.IP, len(n.IP))
 	copy(ip, n.IP)
 	for {
@@ -68,6 +75,8 @@ func (n *Net) Take() (net.IP, error) {
 
 // Remove remove a virtual IP by id
 func (n *Net) Remove(ip net.IP) {
+	n.Lock()
+	defer n.Unlock()
 	delete(n.usedIPs, ip.String())
 }
 
