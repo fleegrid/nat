@@ -147,51 +147,25 @@ func (p IPPacket) Length() (int, error) {
 
 // ReadIPPacket read a IPPacket from a io.Reader
 func ReadIPPacket(r io.Reader) (IPPacket, error) {
-	// create a header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
+	// create a minimum header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
 	const hlen = 6
-	h := make(IPPacket, hlen, hlen)
-	// read 20
-	_, err := r.Read(h)
+	p := make(IPPacket, hlen)
+	// read the minimum header
+	_, err := io.ReadFull(r, p)
 	if err != nil {
 		return nil, err
 	}
-	// check version
-	switch h.Version() {
-	case 4:
-		{
-			// calculate the packet length
-			l := int(h[2])<<4 + int(h[3])
-			if l < IPv4PacketHeadLen {
-				return nil, ErrIPPacketTooShort
-			}
-			// create the real packet
-			p := make(IPPacket, l, l)
-			copy(p, h)
-			// read the remaining
-			_, err := r.Read(p[hlen:])
-			if err != nil {
-				return nil, err
-			}
-			return p, nil
-		}
-	case 6:
-		{
-			// calculate the packet length
-			l := int(h[4])<<4 + int(h[5]) + IPv6PacketHeadLen
-			// create the real packet
-			p := make(IPPacket, l, l)
-			copy(p, h)
-			// read the remaining
-			_, err := r.Read(p[hlen:])
-			if err != nil {
-				return nil, err
-			}
-			return p, nil
-		}
-	default:
-		{
-			return nil, ErrIPPacketBadVersion
-		}
+	// retrieve packet length
+	len, err := p.Length()
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	// append size
+	p = append(p, make(IPPacket, len-hlen)...)
+	// read remaining
+	_, err = io.ReadFull(r, p[hlen:])
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
