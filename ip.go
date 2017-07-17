@@ -150,18 +150,19 @@ func ReadIPPacket(r io.Reader) (IPPacket, error) {
 	const HLEN = 6
 	// create a minimum header buf, 6 is enough for checking IP version and retrieving IPv4 and IPv6 length
 	var err error
-	p := make(IPPacket, HLEN)
+	h := make(IPPacket, HLEN, HLEN)
 	// read the minimum header
-	if 	_, err := io.ReadFull(r, p); err != nil {
+	if _, err := io.ReadFull(r, h); err != nil {
 		return nil, err
 	}
 	// retrieve packet length
 	len := 0
-	if len, err = p.Length(); err != nil {
+	if len, err = h.Length(); err != nil {
 		return nil, err
 	}
 	// append size
-	p = append(p, make(IPPacket, len-HLEN)...)
+	p := make(IPPacket, len)
+	copy(p, h)
 	// read remaining
 	if _, err = io.ReadFull(r, p[HLEN:]); err != nil {
 		return nil, err
